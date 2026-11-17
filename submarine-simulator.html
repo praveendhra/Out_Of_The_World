@@ -65,7 +65,7 @@
 <canvas id="scene"></canvas>
 
 <div id="hud">
-  <div id="bl" class="corner">[H] HELP &nbsp;?&nbsp; CLICK THE COCKPIT SWITCHES &amp; BUTTONS</div>
+  <div id="bl" class="corner">[H] HELP &nbsp;·&nbsp; CLICK THE COCKPIT SWITCHES &amp; BUTTONS</div>
   <div id="br" class="corner">SPECIES LOG <b id="stSpecies">0/0</b> &nbsp;[J]</div>
 
   <div id="target"><div class="tname"></div><div class="tsci"></div></div>
@@ -91,6 +91,7 @@
     <tr><td><kbd>P</kbd></td><td>Active sonar ping</td></tr>
     <tr><td><kbd>M</kbd></td><td>Mute / unmute audio</td></tr>
     <tr><td><kbd>J</kbd></td><td>Species log</td></tr>
+    <tr><td><kbd>G</kbd></td><td>Graphics: auto / high / performance</td></tr>
     <tr><td><kbd>H</kbd> / <kbd>Esc</kbd></td><td>Toggle this help / close</td></tr>
   </table>
   <p style="text-align:center;color:#8ab;font-size:12px;margin-top:14px">Surface (depth &lt; 4 m) to recharge battery &amp; oxygen and repair the hull.</p>
@@ -106,7 +107,7 @@
     <table class="keys">
       <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td>Throttle &amp; steer</td></tr>
       <tr><td><kbd>R</kbd> / <kbd>F</kbd></td><td>Ascend / descend</td></tr>
-      <tr><td><kbd>Z</kbd> / <kbd>X</kbd> ? Mouse drag</td><td>Look around ? wheel to zoom</td></tr>
+      <tr><td><kbd>Z</kbd> / <kbd>X</kbd> · Mouse drag</td><td>Look around · wheel to zoom</td></tr>
       <tr><td><kbd>L</kbd> <kbd>P</kbd> <kbd>M</kbd></td><td>Lights · Sonar ping · Mute</td></tr>
     </table>
     <button id="diveBtn" disabled>LOADING…</button>
@@ -179,8 +180,8 @@ const reefMask = (x, z) => noise2(x * 0.009 + 70, z * 0.009 - 33);
 // Renderer, scene, camera, lights
 // ======================================================================
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(1);
 renderer.setSize(innerWidth, innerHeight, false);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
@@ -808,7 +809,7 @@ scatters.push(new Scatter({
   },
 }));
 
-// ---------- Towering rock spires (solid ? the sub collides with them)
+// ---------- Towering rock spires (solid — the sub collides with them)
 const spires = new Scatter({
   id: 'spire', geo: rockGeo, count: 46, R: 210, range: 0,
   mat: enhance(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), { caustics: true, nearCull: 2.5, detail: true }),
@@ -938,7 +939,7 @@ class School {
       uFishGlowCol: { value: col(sp.glow || '#000000') }, uFishGlowAmt: { value: sp.glow ? 1 : 0 },
       uEyeY: { value: sp.shape.h * 0.25 }, uWiggle: { value: sp.wig },
     };
-    const mat = enhance(new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.34, metalness: 0.12, envMapIntensity: 0 }), { fish: uniforms });
+    const mat = enhance(new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.34, metalness: 0.12 }), { fish: uniforms });
     this.mesh = new THREE.InstancedMesh(fishGeometry(sp.shape), mat, n);
     this.mesh.frustumCulled = false; this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     scene.add(this.mesh);
@@ -1348,6 +1349,7 @@ addEventListener('keydown', e => {
     case 'KeyL': setLights(!sub.lights); break;
     case 'KeyP': doPing(0.32); break;
     case 'KeyM': audio.toggle(); break;
+    case 'KeyG': setQualityMode({ auto: 'high', high: 'low', low: 'auto' }[Q.mode]); break;
     case 'KeyB': allStop(); break;
     case 'KeyC': sub.lookYaw = 0; sub.lookPitch = LOOK_P0; break;
     case 'KeyH': toggleModal(helpEl); break;
@@ -1357,10 +1359,10 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
-let dragging = false, lx = 0, ly = 0, downX = 0, downY = 0;
+let dragging = false, lx = 0, ly = 0, downX = 0, downY = 0, hoverEvt = null;
 canvas.addEventListener('pointerdown', e => { if (!started) return; dragging = true; lx = downX = e.clientX; ly = downY = e.clientY; canvas.classList.add('drag'); canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', e => {
-  if (!dragging) { if (started) canvas.style.cursor = pickControl(e) ? 'pointer' : ''; return; }
+  if (!dragging) { if (started) hoverEvt = { clientX: e.clientX, clientY: e.clientY }; return; }
   sub.lookYaw = clamp(sub.lookYaw - (e.clientX - lx) * 0.003, -LOOK_YAW_MAX, LOOK_YAW_MAX);
   sub.lookPitch = clamp(sub.lookPitch - (e.clientY - ly) * 0.003, -0.95, 0.55);
   lx = e.clientX; ly = e.clientY;
@@ -1392,13 +1394,13 @@ flood.position.set(0, -0.75, -1.5);
 flood.target.position.set(0, -2.6, -12);
 {
   const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+  var envTex = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
   pmrem.dispose();
 }
 
 function makeCanvas(w, h, s = 2) {
   const cv = document.createElement('canvas'); cv.width = Math.round(w * s); cv.height = Math.round(h * s);
-  const ctx = cv.getContext('2d'); ctx.scale(s, s); return { cv, ctx, w, h };
+  const ctx = cv.getContext('2d', { willReadFrequently: true }); ctx.scale(s, s); return { cv, ctx, w, h };
 }
 function canvasTex(cv) { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); return t; }
 function glassTexture() {
@@ -1414,7 +1416,7 @@ function glassTexture() {
   const t = canvasTex(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }
 
-const std = (o) => { const m = new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.6, metalness: 0.3, envMapIntensity: 0.55 }, o)); m.fog = false; return m; };
+const std = (o) => { const m = new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.6, metalness: 0.3, envMap: envTex, envMapIntensity: 0.55 }, o)); m.fog = false; return m; };
 const basic = (o) => new THREE.MeshBasicMaterial(Object.assign({ fog: false, toneMapped: false }, o));
 const CM = {
   dark: std({ color: 0x20272a, roughness: 0.5, metalness: 0.5 }),
@@ -1488,7 +1490,6 @@ const glassMat = new THREE.ShaderMaterial({
   add(cockpit, new THREE.CircleGeometry(Math.sqrt(DOME_R * DOME_R - 1.21), 64), CM.floor, DOME_C.x, DOME_C.y - 1.1, DOME_C.z, -Math.PI / 2, 0, 0);
 }
 const cabinLight = new THREE.PointLight(0xffd9a8, 2.4, 5, 1.5); cabinLight.position.set(DOME_C.x, DOME_C.y + 1.35, DOME_C.z); cockpit.add(cabinLight);
-const panelGlow = new THREE.PointLight(0x5fffd0, 0.5, 1.5, 2); panelGlow.position.set(0, -0.1, -0.45); cockpit.add(panelGlow);
 
 // ---------- Dashboard (glare shield, panel, yoke, console)
 const dash = new THREE.Group(); dash.position.set(0, -0.17, 0.02); cockpit.add(dash);
@@ -1501,12 +1502,13 @@ add(ip, new THREE.BoxGeometry(2.9, 0.42, 0.04), CM.panel, 0, 0, -0.02);
 function addScreen(cvo, w, h, x, y) {
   add(ip, new THREE.BoxGeometry(w + 0.035, h + 0.035, 0.022), CM.dark, x, y, 0.011);
   const tex = canvasTex(cvo.cv);
+  tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
   add(ip, new THREE.PlaneGeometry(w, h), basic({ map: tex, color: new THREE.Color(1.45, 1.45, 1.45) }), x, y, 0.0225);
   for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) add(ip, screwGeo, CM.metal, x + sx * (w / 2 + 0.009), y + sy * (h / 2 + 0.009), 0.0235);
   return tex;
 }
-const depthC = makeCanvas(180, 170, 2.5), statC = makeCanvas(200, 188, 2.5), headC = makeCanvas(380, 40, 2.5);
-const clockC = makeCanvas(220, 56, 2.5), sonarC = makeCanvas(200, 200, 2.5), speedC = makeCanvas(180, 112, 2.5);
+const depthC = makeCanvas(180, 170, 2), statC = makeCanvas(200, 188, 2), headC = makeCanvas(380, 40, 2);
+const clockC = makeCanvas(220, 56, 2), sonarC = makeCanvas(200, 200, 2), speedC = makeCanvas(180, 112, 2);
 const depthCtx = depthC.ctx, statCtx = statC.ctx, headCtx = headC.ctx, clockCtx = clockC.ctx, sonarCtx = sonarC.ctx, speedCtx = speedC.ctx;
 const screenTex = [
   addScreen(depthC, 0.30, 0.283, -0.93, -0.03), addScreen(statC, 0.32, 0.30, -0.55, -0.03),
@@ -1642,7 +1644,11 @@ ctl.toggles = ['PUMP', 'SCRUB', 'HEAT', 'COMMS', 'NAV', 'AUX'].map((name, i) => 
   return clickable(g, 'toggle');
 });
 const occluders = [];
-cockpit.traverse(o => { if (o.isMesh && !o.userData.glass) occluders.push(o); });
+cockpit.traverse(o => {
+  if (!o.isMesh || o.isInstancedMesh || o.userData.glass) return;
+  const g = o.geometry, tris = (g.index ? g.index.count : g.attributes.position.count) / 3;
+  if (tris <= 400) occluders.push(o);
+});
 
 const cstate = { turn: 0, push: 0, light: 0.45, knob: -0.9 };
 let stopT = -10;
@@ -1706,7 +1712,8 @@ composer.addPass(new ShaderPass({
   fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
-      if (any(isnan(c)) || any(isinf(c))) c = vec4(0.0, 0.0, 0.0, 1.0);
+      uvec4 eb = floatBitsToUint(c) & 0x7f800000u;
+      if (any(equal(eb, uvec4(0x7f800000u)))) c = vec4(0.0, 0.0, 0.0, 1.0);
       gl_FragColor = vec4(clamp(c.rgb, 0.0, 32.0), clamp(c.a, 0.0, 1.0));
     }`,
 }));
@@ -1748,6 +1755,42 @@ function layout() {
   bubMat.uniforms.uScale.value = 22 * pr * (h / 900);
 }
 addEventListener('resize', layout);
+
+// Adaptive quality: when frames get slow, drop MSAA first, then render resolution; creep back up when there's headroom.
+const DPR = window.devicePixelRatio || 1, Q_MIN = 0.67, Q_MAX = Math.min(DPR, 1.5);
+const Q = { mode: 'auto', scale: Math.min(DPR, 1), ceil: Q_MAX, msaa: true, msaaOk: true, acc: 0, n: 0, good: 0, cool: 3 };
+function applyQuality() {
+  renderer.setPixelRatio(Q.scale);
+  const s = Q.msaa ? 4 : 0;
+  for (const rt of [composer.renderTarget1, composer.renderTarget2]) if (rt.samples !== s) { rt.samples = s; rt.dispose(); }
+  layout();
+}
+function setQualityMode(mode) {
+  Q.mode = mode; Q.acc = Q.n = Q.good = 0; Q.cool = 2;
+  if (mode === 'high') { Q.scale = Q_MAX; Q.msaa = true; }
+  else if (mode === 'low') { Q.scale = 0.6; Q.msaa = false; }
+  else { Q.scale = Math.min(DPR, 1); Q.ceil = Q_MAX; Q.msaa = Q.msaaOk = true; }
+  applyQuality();
+  toast('GRAPHICS · ' + { auto: 'AUTO (ADAPTIVE)', high: 'HIGH', low: 'PERFORMANCE' }[mode]);
+}
+function updateQuality(rawDt) {
+  if (Q.mode !== 'auto' || document.hidden || rawDt > 0.5) return;
+  Q.acc += rawDt; Q.n++;
+  if (Q.acc < 1) return;
+  const ms = Q.acc / Q.n * 1000; Q.acc = Q.n = 0;
+  if (Q.cool > 0) { Q.cool--; return; }
+  if (ms > 26) {
+    Q.good = 0;
+    if (Q.msaa) Q.msaa = Q.msaaOk = false;
+    else if (Q.scale > Q_MIN) { Q.ceil = Math.min(Q.ceil, Q.scale); Q.scale = Math.max(Q_MIN, Q.scale * (ms > 45 ? 0.72 : 0.87)); }
+    else return;
+    Q.cool = 1; applyQuality();
+  } else if (ms < 18.5 && ++Q.good >= 4) {
+    Q.good = 0;
+    const target = Q.ceil * 0.95;
+    if (Q.scale < target - 0.01) { Q.scale = Math.min(target, Q.scale * 1.08); Q.cool = 1; applyQuality(); }
+  }
+}
 
 // ======================================================================
 // Instrument screens (drawn to canvases, shown as textures on the panel)
@@ -1847,11 +1890,11 @@ function drawStatus(depth, altitude, hdg) {
 const SONAR_RANGE = 150, SONAR_PERIOD = 4;
 const sonarMap = document.createElement('canvas'); sonarMap.width = sonarMap.height = 64;
 const smCtx = sonarMap.getContext('2d'), smImg = smCtx.createImageData(64, 64);
-let sonarMapT = -1;
+let sonarRow = 0;
 const fwdV = new THREE.Vector3(), rightV = new THREE.Vector3();
-function updateSonarMap() {
+function updateSonarMap(rows) {
   const d = smImg.data;
-  for (let j = 0; j < 64; j++) for (let i = 0; i < 64; i++) {
+  for (let n = 0; n < rows; n++, sonarRow = (sonarRow + 1) % 64) for (let i = 0, j = sonarRow; i < 64; i++) {
     const r = ((i + 0.5) / 64 * 2 - 1) * SONAR_RANGE, f = (1 - (j + 0.5) / 64 * 2) * SONAR_RANGE;
     const x = sub.pos.x + fwdV.x * f + rightV.x * r, z = sub.pos.z + fwdV.z * f + rightV.z * r;
     const h = heightAt(x, z), diff = h - sub.pos.y, k = (j * 64 + i) * 4;
@@ -1859,7 +1902,7 @@ function updateSonarMap() {
     else if (diff > -3) { d[k] = 200; d[k + 1] = 150; d[k + 2] = 40; d[k + 3] = 120; }
     else { const v = clamp(1 + diff / 80, 0, 1); d[k] = 10; d[k + 1] = 40 + v * 110; d[k + 2] = 35 + v * 60; d[k + 3] = 120; }
   }
-  smCtx.putImageData(smImg, 0, 0);
+  if (sonarRow < rows) smCtx.putImageData(smImg, 0, 0);
 }
 function sonarContacts() {
   const list = [];
@@ -1978,12 +2021,13 @@ function updateBracket() {
 // Main loop
 // ======================================================================
 const clock = new THREE.Clock();
-let hudT = 0, scrT = 0, targT = 0, lastSweepIdx = 0, nextCreak = 12, nextWhale = 10;
+let hudT = 0, scrT = 0, scrI = 0, targT = 0, lastSweepIdx = 0, nextCreak = 12, nextWhale = 10;
 const fogCol = new THREE.Color(), lookQ = new THREE.Quaternion(), lookE = new THREE.Euler(), hullFwd = new THREE.Vector3();
 const EYE = new THREE.Vector3(0, 0.04, 0.1);
 function step() {
   requestAnimationFrame(step);
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const rawDt = clock.getDelta(), dt = Math.min(rawDt, 0.05);
+  updateQuality(rawDt);
   const t = (U.time.value += dt);
 
   // ----- Controls & physics
@@ -2104,16 +2148,21 @@ function step() {
 
   // ----- Cockpit screens & HUD
   const hdg = (((-sub.yaw * 180 / Math.PI) % 360) + 360) % 360;
-  if (t - sonarMapT > 0.6) { sonarMapT = t; updateSonarMap(); }
+  updateSonarMap(3);
+  if (hoverEvt) { canvas.style.cursor = pickControl(hoverEvt) ? 'pointer' : ''; hoverEvt = null; }
   if ((scrT -= dt) < 0) {
-    scrT = 1 / 30;
-    drawDepth(depth);
-    drawSpeed(sub.speed * 1.944, eff);
-    drawHeading(hdg);
-    drawStatus(depth, altitude, hdg);
-    drawClock(started ? t - diveStart : 0);
-    drawSonar(t);
-    for (const tx of screenTex) tx.needsUpdate = true;
+    scrT = 1 / 60;
+    for (let n = 0; n < 2; n++, scrI = (scrI + 1) % 6) {
+      switch (scrI) {
+        case 0: drawDepth(depth); break;
+        case 1: drawStatus(depth, altitude, hdg); break;
+        case 2: drawHeading(hdg); break;
+        case 3: drawClock(started ? t - diveStart : 0); break;
+        case 4: drawSonar(t); break;
+        case 5: drawSpeed(sub.speed * 1.944, eff); break;
+      }
+      screenTex[scrI].needsUpdate = true;
+    }
   }
   if ((targT -= dt) < 0) { targT = 0.2; findTarget(); }
   updateBracket();
@@ -2144,7 +2193,8 @@ for (const s of scatters) s.init(sub.pos.x, sub.pos.z);
 for (const s of schools) s.relocate(sub.pos, s.sp.solo ? 50 : 12, s.sp.solo ? 90 : 55);
 for (const s of swimmers) { s.relocate(sub.pos); }
 updateSpeciesCount();
-layout();
+updateSonarMap(64);
+applyQuality();
 step();
 
 window.__simReady = true;
