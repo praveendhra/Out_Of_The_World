@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Abyssal Voyager — Deep Sea Submarine Simulator</title>
 <style>
   :root { --glow:#7fffd4; --dim:#4f9c93; --warn:#ff5a4a; --amber:#ffc24a; }
@@ -53,6 +55,43 @@
   #diveBtn:not(:disabled):hover { box-shadow:0 0 40px rgba(80,255,200,.9); }
   #loadErr { display:none; color:var(--warn); margin-top:14px; font-size:13px; }
   .note { font-size:11px; color:#678; margin-top:16px; letter-spacing:1px; }
+  /* ---------- touch / tilt controls (phones and tablets) ---------- */
+  html, body { -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; -webkit-user-select:none; }
+  body.touch #scene { touch-action:none; }
+  .modal { min-width:min(420px, 86vw); max-width:92vw; }
+  #touch { position:fixed; inset:0; z-index:5; pointer-events:none; display:none; }
+  body.touch.diving #touch { display:block; }
+  body.touch #bl, body.touch #br { display:none; }
+  #touch .tc { pointer-events:auto; touch-action:none; position:absolute; display:flex; align-items:center; justify-content:center;
+    color:var(--glow); font-family:inherit; font-size:12px; letter-spacing:2px; background:rgba(2,18,22,.55); border:1.5px solid rgba(127,255,212,.45);
+    box-shadow:0 0 12px rgba(80,255,200,.15), inset 0 0 14px rgba(0,60,60,.4); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px);
+    text-shadow:0 0 6px rgba(127,255,212,.7); transition:transform .06s, background .06s; }
+  #touch .tc.down { transform:scale(.93); background:rgba(127,255,212,.25); }
+  #touch .tbar { position:absolute; top:calc(8px + env(safe-area-inset-top)); left:calc(10px + env(safe-area-inset-left)); display:flex; gap:6px; flex-wrap:wrap; max-width:62vw; }
+  #touch .tbar .tc { position:static; height:34px; padding:0 9px; border-radius:8px; font-size:10px; letter-spacing:1.5px; }
+  #touch .tbar .tc.on { background:rgba(255,194,74,.28); border-color:var(--amber); color:var(--amber); }
+  #touch.btns #tCal { display:none; }
+  #tCal.need { background:rgba(127,255,212,.3); animation:blink 1.2s steps(2) infinite; }
+  #touch .arrow { width:76px; height:76px; border-radius:50%; font-size:22px; }
+  #touch.tilt .arrow { display:none; }
+  #tL { left:calc(16px + env(safe-area-inset-left)); bottom:calc(20px + env(safe-area-inset-bottom)); }
+  #tR { left:calc(104px + env(safe-area-inset-left)); bottom:calc(20px + env(safe-area-inset-bottom)); }
+  #tU { right:calc(96px + env(safe-area-inset-right)); bottom:calc(108px + env(safe-area-inset-bottom)); }
+  #tD { right:calc(96px + env(safe-area-inset-right)); bottom:calc(20px + env(safe-area-inset-bottom)); }
+  #thr { position:absolute; right:calc(16px + env(safe-area-inset-right)); bottom:calc(20px + env(safe-area-inset-bottom)); width:66px; height:min(230px, 58vh);
+    border-radius:14px; flex-direction:column; justify-content:flex-start; padding:0; }
+  #thr .lab { position:absolute; top:-18px; font-size:9px; letter-spacing:2px; color:var(--dim); text-shadow:0 0 4px #000; }
+  #thr .zero { position:absolute; left:8px; right:8px; height:1px; background:rgba(127,255,212,.5); }
+  #thr .fill { position:absolute; left:6px; right:6px; border-radius:6px; background:rgba(127,255,212,.22); }
+  #thr .knob { position:absolute; left:4px; right:4px; height:26px; margin-top:-13px; border-radius:7px; background:linear-gradient(#9fffe0,#3fcfaa);
+    box-shadow:0 0 14px rgba(80,255,200,.7); color:#021; font-size:10px; display:flex; align-items:center; justify-content:center; text-shadow:none; }
+  #tsteer { position:absolute; left:50%; bottom:calc(14px + env(safe-area-inset-bottom)); width:130px; height:4px; margin-left:-65px; background:rgba(127,255,212,.18); border-radius:2px; }
+  #tsteer i { position:absolute; top:-5px; left:50%; width:14px; height:14px; margin-left:-7px; border-radius:50%; background:var(--glow); box-shadow:0 0 10px var(--glow); }
+  #touch.btns #tsteer { display:none; }
+  .tkeys { display:none; color:#bcd; font-size:13px; line-height:1.7; margin:0 auto; max-width:520px; }
+  body.touch table.keys, body.touch .note { display:none; } body.touch .tkeys { display:block; }
+  @media (max-height:520px) { #start h1 { font-size:30px; letter-spacing:8px; } #start p { font-size:12px; margin:8px 0; } #start .sub { margin:4px 0 10px; } #diveBtn { margin-top:12px; } #start .box { padding:10px 16px; } }
+  @media (max-width:520px) { #start h1 { font-size:28px; letter-spacing:6px; } }
 </style>
 <script type="importmap">
 { "imports": {
@@ -99,6 +138,23 @@
 
 <div id="log" class="modal hidden"><h2>SPECIES LOG</h2><ul id="logList"></ul></div>
 
+<div id="touch">
+  <div class="tbar">
+    <div class="tc" data-act="KeyL" id="tLights">LIGHTS</div>
+    <div class="tc" data-act="KeyP">SONAR</div>
+    <div class="tc" data-act="KeyJ">LOG</div>
+    <div class="tc" data-act="KeyB">STOP</div>
+    <div class="tc" data-act="SteerMode" id="tMode">TILT</div>
+    <div class="tc" id="tCal">CENTER</div>
+  </div>
+  <div class="tc arrow" id="tL" data-key="ArrowLeft">◀</div>
+  <div class="tc arrow" id="tR" data-key="ArrowRight">▶</div>
+  <div class="tc arrow" id="tU" data-key="KeyR">▲</div>
+  <div class="tc arrow" id="tD" data-key="KeyF">▼</div>
+  <div class="tc" id="thr"><span class="lab">THROTTLE</span><i class="fill"></i><i class="zero"></i><b class="knob">0</b></div>
+  <div id="tsteer"><i></i></div>
+</div>
+
 <div id="start">
   <div class="box">
     <h1>ABYSSAL VOYAGER</h1>
@@ -110,6 +166,8 @@
       <tr><td><kbd>Z</kbd> / <kbd>X</kbd> · Mouse drag</td><td>Look around · wheel to zoom</td></tr>
       <tr><td><kbd>L</kbd> <kbd>P</kbd> <kbd>M</kbd></td><td>Lights · Sonar ping · Mute</td></tr>
     </table>
+    <div class="tkeys">Slide <b>THROTTLE</b> to cruise. Turn your phone like a wheel to steer, tip the top away to dive and back to climb.
+      Tap <b>CENTER</b> to reset your neutral grip. Drag the view to look around; tap cockpit switches to use them.</div>
     <button id="diveBtn" disabled>LOADING…</button>
     <div id="loadErr">Could not load Three.js from the CDN (unpkg.com). Check your internet connection and reload.</div>
     <div class="note">🎧 Headphones recommended · press H anytime for controls</div>
@@ -2039,12 +2097,14 @@ function step() {
     if (k('KeyS') || k('ArrowDown')) sub.throttle = Math.max(-0.4, sub.throttle - 0.6 * dt);
     const maxThr = sub.battery <= 0 ? 0.15 : 1;
     eff = clamp(sub.throttle, -maxThr, maxThr);
-    const turn = turnIn = ((k('KeyA') || k('ArrowLeft')) ? 1 : 0) - ((k('KeyD') || k('ArrowRight')) ? 1 : 0);
-    vertIn = (up ? 1 : 0) - (down ? 1 : 0);
+    let turn = ((k('KeyA') || k('ArrowLeft')) ? 1 : 0) - ((k('KeyD') || k('ArrowRight')) ? 1 : 0);
+    let vert = (up ? 1 : 0) - (down ? 1 : 0);
+    if (IS_TOUCH && touchMode === 'tilt' && tiltLive()) { if (!turn) turn = -tiltRoll(); if (!vert) vert = tiltPitch(); }
+    turnIn = turn; vertIn = vert;
     const look = (k('KeyZ') ? 1 : 0) - (k('KeyX') ? 1 : 0);
     if (look) sub.lookYaw = clamp(sub.lookYaw + look * 1.4 * dt, -LOOK_YAW_MAX, LOOK_YAW_MAX);
     sub.yawRate = lerp(sub.yawRate, turn * 0.6 * (0.5 + 0.5 * Math.min(1, Math.abs(sub.speed) / 3)), 1 - Math.exp(-dt * 2.5));
-    sub.vy = lerp(sub.vy, ((up ? 1 : 0) - (down ? 1 : 0)) * 3.5, 1 - Math.exp(-dt * 1.2));
+    sub.vy = lerp(sub.vy, vert * 3.5, 1 - Math.exp(-dt * 1.2));
   } else {
     sub.yawRate = 0.05;
   }
@@ -2197,10 +2257,99 @@ updateSonarMap(64);
 applyQuality();
 step();
 
+// ======================================================================
+// Touch + tilt controls (phones / tablets)
+// ======================================================================
+// Gravity direction from deviceorientation, rotated into screen space. Roll in the screen plane
+// steers like a wheel; how far the screen leans back (elevation) drives dive / climb.
+const IS_TOUCH = new URLSearchParams(location.search).get('touch') === '1' || (('ontouchstart' in window) && matchMedia('(pointer:coarse)').matches);
+const DEG = Math.PI / 180, TAU2 = Math.PI * 2, wrapA = a => ((a + Math.PI) % TAU2 + TAU2) % TAU2 - Math.PI;
+const TILT = { roll: null, elev: null, zeroR: 0, zeroE: null, listening: false, lastEvt: 0 };
+let touchMode = (() => { try { return localStorage.getItem('av_steer') || 'tilt'; } catch (e) { return 'tilt'; } })();
+function onOrient(e) {
+  if (e.beta == null || e.gamma == null) return;
+  const b = e.beta * DEG, g = e.gamma * DEG, ux = -Math.sin(g) * Math.cos(b), uy = Math.sin(b), uz = Math.cos(g) * Math.cos(b);
+  const sa = ((screen.orientation && screen.orientation.angle) ?? (window.orientation || 0)) * DEG;
+  const sx = ux * Math.cos(sa) - uy * Math.sin(sa), sy = ux * Math.sin(sa) + uy * Math.cos(sa);
+  TILT.lastEvt = performance.now();
+  const el = Math.atan2(uz, Math.hypot(sx, sy));
+  TILT.elev = TILT.elev == null ? el : TILT.elev + (el - TILT.elev) * 0.5;
+  if (TILT.zeroE == null) TILT.zeroE = TILT.elev;       // first reading = the player's natural grip
+  if (Math.hypot(sx, sy) < 0.2) return;                  // nearly flat: roll undefined, keep last
+  const a = Math.atan2(-sx, sy);
+  TILT.roll = TILT.roll == null ? a : TILT.roll + wrapA(a - TILT.roll) * 0.5;
+}
+const tiltLive = () => TILT.roll != null && performance.now() - TILT.lastEvt < 1500;
+const axis = (d, dz, full) => Math.abs(d) < dz ? 0 : clamp((d - Math.sign(d) * dz) / full, -1, 1);
+const tiltRoll = () => axis(wrapA(TILT.roll - TILT.zeroR) / DEG, 2, 24);
+const tiltPitch = () => TILT.zeroE == null ? 0 : -axis((TILT.elev - TILT.zeroE) / DEG, 4, 14);
+function enableTilt() {
+  const D = window.DeviceOrientationEvent, go = () => { if (!TILT.listening) { addEventListener('deviceorientation', onOrient); TILT.listening = true; } return true; };
+  if (!D) return Promise.resolve(false);
+  if (typeof D.requestPermission === 'function') return D.requestPermission().then(r => r === 'granted' && go()).catch(() => false);
+  return Promise.resolve(go());
+}
+function goFullscreen() {
+  const el = document.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (rq && !document.fullscreenElement) Promise.resolve(rq.call(el, { navigationUI: 'hide' })).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape')).catch(() => {});
+}
+const pressKey = code => { dispatchEvent(new KeyboardEvent('keydown', { code })); dispatchEvent(new KeyboardEvent('keyup', { code })); };
+function setTouchMode(m) {
+  touchMode = m; try { localStorage.setItem('av_steer', m); } catch (e) {}
+  const T = $('touch'); T.classList.toggle('tilt', m === 'tilt'); T.classList.toggle('btns', m !== 'tilt'); $('tMode').textContent = m === 'tilt' ? 'TILT' : 'BUTTONS';
+  for (const c of ['ArrowLeft', 'ArrowRight', 'KeyR', 'KeyF']) keys.delete(c);
+  if (m === 'tilt') enableTilt();
+}
+function setupTouch() {
+  document.body.classList.add('diving'); setTouchMode(touchMode);
+  const T = $('touch');
+  T.querySelectorAll('[data-key]').forEach(el => {
+    const code = el.dataset.key;
+    const on = e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) {} keys.add(code); el.classList.add('down'); audio.resume(); };
+    const off = () => { keys.delete(code); el.classList.remove('down'); };
+    el.addEventListener('pointerdown', on); for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, off);
+  });
+  T.querySelectorAll('[data-act]').forEach(el => el.addEventListener('pointerdown', e => {
+    e.preventDefault(); audio.resume(); const a = el.dataset.act;
+    if (a === 'SteerMode') { setTouchMode(touchMode === 'tilt' ? 'buttons' : 'tilt'); toast(touchMode === 'tilt' ? 'TILT STEERING' : 'BUTTON STEERING'); }
+    else pressKey(a);
+  }));
+  $('tCal').addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (!tiltLive()) { enableTilt().then(ok => { if (!ok) toast('TILT UNAVAILABLE · USE BUTTONS'); }); return; }
+    TILT.zeroR = TILT.roll; TILT.zeroE = TILT.elev; toast('CONTROLS CENTERED');
+  });
+  // Throttle slider: absolute position sets the throttle (-0.4 astern .. 1 ahead), snapping to stop near zero.
+  const thr = $('thr');
+  const setThr = e => { const r = thr.getBoundingClientRect(), t = clamp(1 - (e.clientY - r.top) / r.height, 0, 1); let v = -0.4 + t * 1.4; if (Math.abs(v) < 0.07) v = 0; sub.throttle = v; };
+  thr.addEventListener('pointerdown', e => { e.preventDefault(); try { thr.setPointerCapture(e.pointerId); } catch (_) {} thr.classList.add('down'); setThr(e); audio.resume(); });
+  thr.addEventListener('pointermove', e => { if (thr.classList.contains('down')) setThr(e); });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) thr.addEventListener(ev, () => thr.classList.remove('down'));
+  // No gyro events after a few seconds: offer tap-to-enable (iOS permission) or fall back to buttons.
+  setTimeout(() => {
+    if (touchMode !== 'tilt' || tiltLive()) return;
+    if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { $('tCal').textContent = 'TAP FOR TILT'; $('tCal').classList.add('need'); }
+    else { setTouchMode('buttons'); toast('NO GYROSCOPE · BUTTON CONTROLS'); }
+  }, 3000);
+  (function touchHud() {
+    requestAnimationFrame(touchHud);
+    const f = (sub.throttle + 0.4) / 1.4, z = 0.4 / 1.4, knob = thr.querySelector('.knob'), fill = thr.querySelector('.fill');
+    knob.style.top = ((1 - f) * 100).toFixed(1) + '%'; knob.textContent = sub.throttle === 0 ? 'STOP' : Math.round(sub.throttle * 100);
+    thr.querySelector('.zero').style.top = ((1 - z) * 100).toFixed(1) + '%';
+    fill.style.top = (Math.min(1 - f, 1 - z) * 100).toFixed(1) + '%'; fill.style.height = (Math.abs(f - z) * 100).toFixed(1) + '%';
+    $('tLights').classList.toggle('on', sub.lights);
+    if (tiltLive() && $('tCal').classList.contains('need')) { $('tCal').classList.remove('need'); $('tCal').textContent = 'CENTER'; }
+    $('tsteer').firstChild.style.left = (50 - sub.yawRate / 0.6 * 50).toFixed(1) + '%';
+  })();
+}
+if (IS_TOUCH) document.body.classList.add('touch');
+
 window.__simReady = true;
+window.__AV = { sub, keys, TILT, onOrient, tiltRoll, tiltPitch };
 const diveBtn = $('diveBtn');
 diveBtn.disabled = false; diveBtn.textContent = '▼ BEGIN DIVE';
 diveBtn.addEventListener('click', () => {
+  if (IS_TOUCH) { goFullscreen(); if (touchMode === 'tilt') enableTilt(); setupTouch(); }
   audio.init(); audio.resume();
   started = true; diveStart = U.time.value; sub.yawRate = 0;
   $('start').classList.add('hidden');
