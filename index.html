@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GameZone</title>
+<meta name="description" content="GameZone: browser games by Pravii. Pick a game and play right in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070a'/%3E%3Cpath d='M18 26h8v-8h4v8h8v4h-8v8h-4v-8h-8z' fill='%237fffd4'/%3E%3Ccircle cx='44' cy='24' r='3' fill='%23ff5a4a'/%3E%3Ccircle cx='50' cy='30' r='3' fill='%23ffc24a'/%3E%3Ccircle cx='44' cy='36' r='3' fill='%235aa9ff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #05070a;
+    --panel: rgba(14, 20, 32, .82);
+    --line: rgba(140, 180, 255, .16);
+    --text: #e8eef6;
+    --muted: #8fa3bd;
+    --dim: #5d6f86;
+    --glow: #7fffd4;
+    --amber: #ffc24a;
+    --red: #ff5a4a;
+    --blue: #5aa9ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  html { background: #020305; }
+  body {
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(60, 90, 150, .45), transparent 55%),
+      radial-gradient(ellipse at 90% 100%, rgba(20, 110, 100, .28), transparent 50%),
+      linear-gradient(160deg, #0b1220, #020305);
+    background-repeat: no-repeat;
+    color: var(--text);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  body::before { /* faint scanlines for an arcade feel */
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+  }
+  a { color: inherit; }
+  .wrap { position: relative; z-index: 1; width: min(1100px, 92vw); margin: 0 auto; padding: 56px 0 40px; }
+
+  /* ---------- header ---------- */
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 40px; }
+  .brand { display: flex; align-items: center; gap: 16px; }
+  .logo {
+    width: 58px; height: 58px; border-radius: 16px; flex: none;
+    background: linear-gradient(145deg, #13203a, #070b12);
+    border: 1px solid var(--line);
+    box-shadow: 0 0 24px rgba(127, 255, 212, .15), inset 0 1px 0 rgba(255,255,255,.06);
+    display: grid; place-items: center;
+  }
+  h1 { font-size: clamp(34px, 6vw, 52px); font-weight: 800; font-style: italic; letter-spacing: 8px; line-height: 1; }
+  h1 span { color: var(--glow); text-shadow: 0 0 18px rgba(127, 255, 212, .45); }
+  .tag { color: var(--muted); letter-spacing: 1px; font-size: 14px; margin-top: 8px; }
+  .count {
+    font-family: Consolas, 'Lucida Console', monospace; font-size: 12px; letter-spacing: 3px;
+    color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px;
+  }
+  .count b { color: var(--glow); font-weight: normal; }
+
+  /* ---------- grid + cards ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 26px; }
+  .card {
+    position: relative; display: flex; flex-direction: column;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);
+    text-decoration: none;
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+  }
+  .card:hover, .card:focus-visible {
+    transform: translateY(-6px);
+    border-color: var(--accent, var(--glow));
+    box-shadow: 0 30px 70px rgba(0,0,0,.6), 0 0 0 1px var(--accent, var(--glow)), 0 0 40px -8px var(--accent, var(--glow));
+    outline: none;
+  }
+  .art { position: relative; height: 190px; overflow: hidden; }
+  .art .label {
+    position: absolute; left: 16px; bottom: 12px; z-index: 3;
+    font-family: Consolas, monospace; font-size: 11px; letter-spacing: 3px;
+    color: rgba(255,255,255,.75); background: rgba(0,0,0,.45); padding: 3px 9px; border-radius: 6px;
+  }
+  .body { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+  .body h2 { font-size: 22px; letter-spacing: 3px; font-weight: 800; text-transform: uppercase; }
+  .body p { color: var(--muted); font-size: 14px; }
+  .keys { display: flex; flex-wrap: wrap; gap: 6px; }
+  .keys span {
+    font-family: Consolas, monospace; font-size: 11px; color: #c9d6e6;
+    border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; background: rgba(255,255,255,.03);
+  }
+  .meta { color: var(--dim); font-size: 12px; letter-spacing: .5px; }
+  .play {
+    margin-top: auto; align-self: flex-start;
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 700; letter-spacing: 3px; font-size: 13px; text-transform: uppercase;
+    color: #061014; background: var(--accent, var(--glow));
+    padding: 10px 20px; border-radius: 10px;
+    box-shadow: 0 0 22px -4px var(--accent, var(--glow));
+  }
+  .play::after { content: "▶"; font-size: 11px; }
+
+  /* ---------- Endless Drive cover art ---------- */
+  .art-drive { background: linear-gradient(#0b1530 0%, #24345e 42%, #e98a4b 58%, #2a1a14 58.5%, #120c0a 100%); }
+  .art-drive .sun {
+    position: absolute; left: 50%; top: 34%; width: 90px; height: 90px; margin-left: -45px; border-radius: 50%;
+    background: radial-gradient(circle, #ffd27a 0 45%, rgba(255,150,80,.35) 46%, transparent 70%);
+  }
+  .art-drive .hills {
+    position: absolute; left: -10%; right: -10%; top: 46%; height: 30px;
+    background: radial-gradient(ellipse at 20% 100%, #1c1420 60%, transparent 61%),
+                radial-gradient(ellipse at 75% 100%, #241826 55%, transparent 56%);
+  }
+  .art-drive .road {
+    position: absolute; left: 50%; bottom: 0; width: 0; height: 0; transform: translateX(-50%);
+    border-left: 190px solid transparent; border-right: 190px solid transparent; border-bottom: 82px solid #2b2b33;
+  }
+  .art-drive .lines {
+    position: absolute; left: 50%; bottom: 0; width: 6px; height: 82px; transform: translateX(-50%);
+    background: repeating-linear-gradient(to top, #ffd27a 0 14px, transparent 14px 26px);
+    clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);
+    animation: dash .6s linear infinite;
+  }
+  .art-drive .rail { position: absolute; bottom: 0; height: 82px; width: 3px; background: rgba(255,255,255,.35); }
+  .art-drive .rail.l { left: 50%; transform-origin: bottom; transform: translateX(-190px) skewX(66deg); }
+  .art-drive .rail.r { left: 50%; transform-origin: bottom; transform: translateX(187px) skewX(-66deg); }
+  @keyframes dash { to { background-position: 0 26px; } }
+
+  /* ---------- Abyssal Voyager cover art ---------- */
+  .art-sub { background: radial-gradient(ellipse at 50% -20%, #1d7a8c 0%, #0b3a4f 35%, #031520 70%, #000 100%); }
+  .art-sub .rays {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(100deg, rgba(160,255,240,.07) 0 14px, transparent 14px 46px);
+    mask-image: linear-gradient(#000, transparent 75%); -webkit-mask-image: linear-gradient(#000, transparent 75%);
+  }
+  .art-sub .floor {
+    position: absolute; left: -10%; right: -10%; bottom: -28px; height: 70px; border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 0%, #2d3a3a, #0b1212 70%);
+  }
+  .art-sub .kelp {
+    position: absolute; bottom: 8px; width: 6px; border-radius: 6px;
+    background: linear-gradient(#3fa36b, #1d5a3a); transform-origin: bottom;
+    animation: sway 4s ease-in-out infinite alternate;
+  }
+  .art-sub .sub {
+    position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+    animation: bob 5s ease-in-out infinite;
+  }
+  .art-sub .glow {
+    position: absolute; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--glow); box-shadow: 0 0 10px 3px rgba(127,255,212,.7);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  .art-sub .bubble {
+    position: absolute; bottom: -10px; width: 7px; height: 7px; border-radius: 50%;
+    border: 1px solid rgba(200,255,250,.55); animation: rise 6s linear infinite;
+  }
+  @keyframes sway { from { transform: rotate(-6deg); } to { transform: rotate(6deg); } }
+  @keyframes bob { 50% { transform: translate(-50%, -58%); } }
+  @keyframes pulse { 50% { opacity: .25; } }
+  @keyframes rise { to { transform: translateY(-210px); opacity: 0; } }
+
+  /* ---------- generic art for auto-discovered games ---------- */
+  .art-generic {
+    display: grid; place-items: center;
+    background: radial-gradient(circle at 30% 20%, rgba(90,169,255,.35), transparent 55%),
+                radial-gradient(circle at 80% 90%, rgba(255,90,74,.25), transparent 50%), #0a0f1a;
+  }
+  .art-generic .initial {
+    font-size: 84px; font-weight: 800; font-style: italic; color: rgba(255,255,255,.12); letter-spacing: 4px;
+  }
+
+  footer {
+    margin-top: 46px; padding-top: 20px; border-top: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px;
+    color: var(--dim); font-size: 12px; letter-spacing: .5px;
+  }
+  footer a { color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 64 64">
+          <path d="M8 26h10v-10h6v10h10v6h-10v10h-6v-10h-10z" fill="#7fffd4"/>
+          <circle cx="46" cy="22" r="4.5" fill="#ff5a4a"/>
+          <circle cx="55" cy="31" r="4.5" fill="#ffc24a"/>
+          <circle cx="46" cy="40" r="4.5" fill="#5aa9ff"/>
+        </svg>
+      </div>
+      <div>
+        <h1>GAME<span>ZONE</span></h1>
+        <p class="tag">Pick a game and play it right in your browser.</p>
+      </div>
+    </div>
+    <div class="count" id="count"><b>0</b> GAMES</div>
+  </header>
+
+  <main class="grid" id="games"></main>
+
+  <footer>
+    <span>3D games load Three.js from a CDN, so you need internet on first launch.</span>
+    <a href="https://github.com/praveendhra/gamezone">View source on GitHub</a>
+  </footer>
+</div>
+
+<script>
+  // To add a game: drop its .html file in the repo and add an entry here.
+  // Any .html file you forget to list still shows up (auto-discovered from GitHub) with a generic card.
+  const GAMES = [
+    {
+      file: 'endless-drive.html',
+      title: 'Endless Drive',
+      label: '3D · DRIVING',
+      accent: '#ffc24a',
+      art: 'drive',
+      blurb: 'Open-road driving on an endless highway. Chase checkpoints and speed traps, flip between auto and manual, and drive by day or under the street lamps at night.',
+      keys: ['WASD / Arrows', 'C camera', 'H headlights', 'G auto/manual', 'P pause'],
+      meta: 'Keyboard, gamepad, or steering wheel + pedals'
+    },
+    {
+      file: 'submarine-simulator.html',
+      title: 'Abyssal Voyager',
+      label: '3D · EXPLORATION',
+      accent: '#7fffd4',
+      art: 'sub',
+      blurb: 'Pilot the deep-sea submersible Nautilus-7 past kelp forests, coral reefs and manta rays, then dive down into the dark where the creatures glow.',
+      keys: ['W/S throttle', 'A/D turn', 'R/F ascend/descend', 'L lights', 'P sonar'],
+      meta: 'Headphones recommended · press H for controls'
+    }
+  ];
+
+  const ART = {
+    drive: () => `
+      <div class="sun"></div><div class="hills"></div>
+      <div class="road"></div><div class="rail l"></div><div class="rail r"></div><div class="lines"></div>`,
+    sub: () => {
+      const kelp = [8, 16, 22, 74, 81, 90].map((x, i) =>
+        `<div class="kelp" style="left:${x}%;height:${40 + (i * 17) % 50}px;animation-delay:${-i * .7}s"></div>`).join('');
+      const glows = [[18, 70], [84, 62], [66, 80], [30, 55]].map(([x, y], i) =>
+        `<div class="glow" style="left:${x}%;top:${y}%;animation-delay:${-i}s"></div>`).join('');
+      const bubbles = [44, 52, 58, 61].map((x, i) =>
+        `<div class="bubble" style="left:${x}%;animation-delay:${-i * 1.5}s"></div>`).join('');
+      return `<div class="rays"></div><div class="floor"></div>${kelp}${glows}${bubbles}
+        <svg class="sub" width="120" height="58" viewBox="0 0 120 58" aria-hidden="true">
+          <defs><linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#c47a1c"/></linearGradient></defs>
+          <path d="M60 4 h14 v12 h-14z" fill="#d99a3a"/>
+          <ellipse cx="58" cy="32" rx="48" ry="18" fill="url(#hull)"/>
+          <path d="M10 32 l-8 -10 v20z" fill="#b06a18"/>
+          <circle cx="78" cy="30" r="7" fill="#0b3a4f" stroke="#ffe8b0" stroke-width="2"/>
+          <circle cx="58" cy="30" r="5" fill="#0b3a4f" stroke="#ffe8b0" stroke-width="2"/>
+          <path d="M106 28 l14 -6 v20 l-14 -6z" fill="rgba(255,240,180,.35)"/>
+        </svg>`;
+    },
+    generic: (title) => `<div class="initial">${title.slice(0, 2).toUpperCase()}</div>`
+  };
+
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function card(g) {
+    const art = g.art && ART[g.art] ? ART[g.art]() : ART.generic(esc(g.title));
+    const keys = (g.keys || []).map((k) => `<span>${esc(k)}</span>`).join('');
+    return `
+      <a class="card" href="${esc(encodeURI(g.file))}" style="--accent:${g.accent || '#5aa9ff'}">
+        <div class="art art-${g.art || 'generic'}">${art}<span class="label">${esc(g.label || 'GAME')}</span></div>
+        <div class="body">
+          <h2>${esc(g.title)}</h2>
+          ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
+          ${keys ? `<div class="keys">${keys}</div>` : ''}
+          ${g.meta ? `<div class="meta">${esc(g.meta)}</div>` : ''}
+          <span class="play">Play</span>
+        </div>
+      </a>`;
+  }
+
+  function render(list) {
+    document.getElementById('games').innerHTML = list.map(card).join('');
+    document.getElementById('count').innerHTML = `<b>${list.length}</b> GAME${list.length === 1 ? '' : 'S'}`;
+  }
+
+  // Turn "space-invaders.html" into "Space Invaders".
+  const prettify = (file) => file.replace(/\.html?$/i, '').replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  render(GAMES);
+
+  // Pick up any game files added to the repo that aren't listed above.
+  fetch('https://api.github.com/repos/praveendhra/gamezone/contents/')
+    .then((r) => (r.ok ? r.json() : []))
+    .then((items) => {
+      const known = new Set(GAMES.map((g) => g.file.toLowerCase()));
+      const extra = items
+        .filter((it) => it.type === 'file' && /\.html?$/i.test(it.name))
+        .filter((it) => it.name.toLowerCase() !== 'index.html' && !known.has(it.name.toLowerCase()))
+        .map((it) => ({ file: it.name, title: prettify(it.name), label: 'NEW', meta: it.name }));
+      if (extra.length) render(GAMES.concat(extra));
+    })
+    .catch(() => { /* offline or rate-limited: the static list is enough */ });
+</script>
+</body>
+</html>
